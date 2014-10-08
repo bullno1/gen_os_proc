@@ -8,3 +8,6 @@
 /_rel
 /relx
 /rebar
+
+/priv/gen_os_proc
+/c_src/*.o

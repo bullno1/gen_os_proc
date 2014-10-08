@@ -6,7 +6,6 @@
 
 -record(state, {
 	port,
-	os_pid,
 	listener,
 	hibernate_timeout,
 	buff = []
@@ -26,26 +25,24 @@ init({Listener, Cmd, Opts}) ->
 	PortOpts = [
 		{line, 2048},
 		{cd, Cwd},
+		{args, ["sh", "-c", Cmd]},
 		exit_status |
 		proplists:get_value(port_opts, Opts, [])
 	],
 	ProcOpts = proplists:get_value(proc_opts, Opts, []),
-	Port = erlang:open_port({spawn, Cmd}, PortOpts),
-	OsPid = erlang:port_info(Port, os_pid),
+	Wrapper = filename:absname(filename:join(code:priv_dir(gen_os_proc), "gen_os_proc")),
+	Port = erlang:open_port({spawn_executable, Wrapper}, PortOpts),
 	process_flag(trap_exit, true),
 	HibernateTimeout = proplists:get_value(hibernate_timeout, ProcOpts, infinity),
 	State = #state{
 		port = Port,
-		os_pid = OsPid,
 		listener = Listener,
 		hibernate_timeout = HibernateTimeout
 	},
 	{ok, State, HibernateTimeout}.
 
-terminate(_Reason, #state{port = Port, os_pid = OsPid}) ->
-	catch erlang:port_close(Port),
-	timer:sleep(500),
-	os:cmd(io_lib:format("kill -9 ~w", [OsPid])).
+terminate(_Reason, #state{port = Port}) ->
+	catch erlang:port_close(Port).
 
 handle_call(stop, _From, State) -> {stop, normal, ok, State}.
 
